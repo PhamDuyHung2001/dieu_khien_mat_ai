@@ -2,627 +2,1028 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0F172A">
-    <title>Trạm Cảnh Báo Y Tế - Người Chăm Sóc</title>
-    <!-- Thư viện MQTT kết nối thời gian thực với Python -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#090D16">
+    <title>CareAlert — Cảnh Báo Bệnh Nhân Khóa Trong</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230284C7'/%3E%3Ccircle cx='96' cy='96' r='52' fill='%23FFFFFF'/%3E%3Ccircle cx='96' cy='96' r='22' fill='%23EF4444'/%3E%3C/svg%3E">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
-            --bg-main: #0B0F19;
-            --bg-card: #161E31;
-            --border: #26334D;
-            --text-main: #F8FAFC;
-            --text-muted: #94A3B8;
-            --accent: #38BDF8;
-            --success: #22C55E;
-            --warning: #F97316;
-            --danger: #EF4444;
+            --bg-app: #090D16;
+            --bg-surface: #111827;
+            --bg-elevated: #1A2336;
+            --border-subtle: rgba(148, 163, 184, 0.14);
+            --border-strong: rgba(148, 163, 184, 0.26);
+
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+
+            --sky: #38BDF8;
+            --sky-soft: rgba(56, 189, 248, 0.14);
+            --emerald: #10B981;
+            --emerald-soft: rgba(16, 185, 129, 0.14);
+            --orange: #F97316;
+            --orange-soft: rgba(249, 115, 22, 0.16);
+            --red: #EF4444;
+            --red-soft: rgba(239, 68, 68, 0.16);
+
+            --radius-xl: 20px;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-pill: 999px;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
+        html, body {
+            background-color: var(--bg-app);
+            color: var(--text-primary);
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 460px;
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: calc(14px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
             display: flex;
             flex-direction: column;
-            padding: 16px;
-            max-width: 480px;
-            margin: 0 auto;
+            gap: 14px;
         }
 
-        /* Header */
-        .header {
+        /* Top Bar */
+        .topbar {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding-bottom: 14px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 16px;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 6px 2px;
         }
 
-        .header h1 {
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0284C7, #38BDF8);
+            display: grid;
+            place-items: center;
             font-size: 18px;
-            font-weight: 700;
-            color: var(--text-main);
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+            flex-shrink: 0;
         }
 
-        .header p {
+        .brand-title {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: -0.2px;
+            line-height: 1.15;
+        }
+
+        .brand-sub {
             font-size: 12px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             margin-top: 2px;
         }
 
-        .status-badge {
-            display: flex;
+        .conn-pill {
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(34, 197, 94, 0.15);
-            color: var(--success);
-            padding: 6px 10px;
-            border-radius: 20px;
+            gap: 7px;
+            padding: 7px 12px;
+            border-radius: var(--radius-pill);
             font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            font-weight: 700;
+            background: var(--emerald-soft);
+            color: #6EE7B7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            flex-shrink: 0;
+            transition: all 0.2s ease;
         }
 
-        .status-badge.offline {
-            background: rgba(239, 68, 68, 0.15);
-            color: var(--danger);
-            border-color: rgba(239, 68, 68, 0.3);
+        .conn-pill.disconnected {
+            background: var(--red-soft);
+            color: #FCA5A5;
+            border-color: rgba(239, 68, 68, 0.35);
         }
 
-        .dot {
+        .conn-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background: currentColor;
-            animation: pulse 1.5s infinite;
+            animation: blinkDot 1.6s infinite;
         }
 
-        /* Nút kích hoạt âm thanh (Bắt buộc trên di động) */
-        .audio-unlock-btn {
-            width: 100%;
-            background: linear-gradient(135deg, #0284C7, #2563EB);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 14px;
-            font-size: 15px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35);
+        /* Audio Control Bar */
+        .sound-bar {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .audio-unlock-btn.unlocked {
-            background: var(--bg-card);
-            color: var(--success);
-            border: 1px solid rgba(34, 197, 94, 0.4);
-            box-shadow: none;
-            font-size: 13px;
-            padding: 10px;
-        }
-
-        /* Thẻ trạng thái phòng bệnh hiện tại */
-        .monitor-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 16px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .monitor-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-
-        .monitor-value {
-            font-size: 22px;
-            font-weight: 800;
-            color: var(--accent);
-            margin-bottom: 6px;
-        }
-
-        .monitor-time {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        /* Khu vực Test nhanh cho buổi báo cáo */
-        .test-panel {
-            background: var(--bg-card);
-            border: 1px dashed var(--border);
-            border-radius: 14px;
-            padding: 12px;
-            margin-bottom: 18px;
-        }
-
-        .test-title {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            text-align: center;
-        }
-
-        .test-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .btn-test {
-            padding: 10px;
-            border-radius: 10px;
-            border: none;
-            font-weight: 700;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .btn-test-doc {
-            background: rgba(239, 68, 68, 0.2);
-            color: #FCA5A5;
-            border: 1px solid rgba(239, 68, 68, 0.4);
-        }
-
-        .btn-test-fam {
-            background: rgba(249, 115, 22, 0.2);
-            color: #FDBA74;
-            border: 1px solid rgba(249, 115, 22, 0.4);
-        }
-
-        /* Lịch sử cuộc gọi */
-        .history-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .history-header {
-            display: flex;
             justify-content: space-between;
+            gap: 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 12px 14px;
+        }
+
+        .sound-info {
+            display: flex;
             align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .sound-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: var(--sky-soft);
+            color: var(--sky);
+            display: grid;
+            place-items: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .sound-bar.active .sound-badge {
+            background: var(--emerald-soft);
+            color: #34D399;
+        }
+
+        .sound-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .sound-desc {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn-sound {
+            background: linear-gradient(135deg, #0284C7, #2563EB);
+            color: #FFFFFF;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 9px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            transition: transform 0.12s ease, opacity 0.2s ease;
+        }
+
+        .btn-sound:active {
+            transform: scale(0.96);
+        }
+
+        .sound-bar.active .btn-sound {
+            background: var(--bg-elevated);
+            color: #6EE7B7;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            box-shadow: none;
+        }
+
+        /* Hero Status Card */
+        .hero-card {
+            background: linear-gradient(180deg, #151F33 0%, #101726 100%);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-xl);
+            padding: 20px 18px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+            transition: border-color 0.25s ease, background 0.25s ease;
+        }
+
+        .hero-card.urgent {
+            border-color: rgba(239, 68, 68, 0.55);
+            background: linear-gradient(180deg, rgba(127, 29, 29, 0.38) 0%, #131622 100%);
+        }
+
+        .hero-card.family {
+            border-color: rgba(249, 115, 22, 0.55);
+            background: linear-gradient(180deg, rgba(124, 45, 18, 0.35) 0%, #131622 100%);
+        }
+
+        .hero-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 10px;
         }
 
-        .history-header h2 {
-            font-size: 14px;
-            color: var(--text-muted);
+        .hero-kicker {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.9px;
+            color: var(--text-secondary);
         }
 
-        .clear-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
+        .hero-tag {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            background: var(--sky-soft);
+            color: var(--sky);
+        }
+
+        .hero-card.urgent .hero-tag {
+            background: var(--red-soft);
+            color: #FCA5A5;
+        }
+
+        .hero-card.family .hero-tag {
+            background: var(--orange-soft);
+            color: #FDBA74;
+        }
+
+        .hero-message {
+            font-size: 25px;
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .hero-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .reply-banner {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            background: var(--emerald-soft);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #A7F3D0;
+            font-size: 12.5px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .reply-banner.show {
+            display: block;
+        }
+
+        /* Quick Demo Box */
+        .demo-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 12px 14px;
+        }
+
+        .demo-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .demo-title {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn-demo {
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 12px 10px;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: transform 0.12s ease, filter 0.15s ease;
+        }
+
+        .btn-demo:active {
+            transform: scale(0.97);
+        }
+
+        .btn-demo-doctor {
+            background: var(--red-soft);
+            color: #FCA5A5;
+            border: 1px solid rgba(239, 68, 68, 0.38);
+        }
+
+        .btn-demo-family {
+            background: var(--orange-soft);
+            color: #FDBA74;
+            border: 1px solid rgba(249, 115, 22, 0.38);
+        }
+
+        /* Filter & History Section */
+        .history-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 240px;
+        }
+
+        .history-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .history-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .btn-clear {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            border-radius: var(--radius-pill);
+            padding: 5px 11px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-clear:active {
+            background: var(--bg-elevated);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 7px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .filter-chip {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-pill);
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-chip.active {
+            background: var(--sky-soft);
+            color: var(--sky);
+            border-color: rgba(56, 189, 248, 0.4);
         }
 
         .history-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 9px;
+            max-height: 310px;
             overflow-y: auto;
+            padding-right: 2px;
         }
 
-        .history-item {
-            background: var(--bg-card);
-            border-left: 4px solid var(--accent);
-            padding: 12px 14px;
-            border-radius: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .history-item.urgent {
-            border-left-color: var(--danger);
-        }
-
-        .history-item.family {
-            border-left-color: var(--warning);
-        }
-
-        .item-title {
-            font-size: 15px;
-            font-weight: 700;
-        }
-
-        .item-sub {
-            font-size: 12px;
+        .history-empty {
+            text-align: center;
+            padding: 36px 16px;
             color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .log-item {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-left: 4px solid var(--sky);
+            border-radius: var(--radius-md);
+            padding: 11px 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .log-item.urgent {
+            border-left-color: var(--red);
+        }
+
+        .log-item.family {
+            border-left-color: var(--orange);
+        }
+
+        .log-main {
+            min-width: 0;
+        }
+
+        .log-text {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .log-sub {
+            font-size: 11.5px;
+            color: var(--text-secondary);
             margin-top: 2px;
         }
 
-        .item-time {
+        .log-time {
             font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 600;
+            font-weight: 700;
+            color: var(--text-secondary);
+            flex-shrink: 0;
         }
 
-        /* MÀN HÌNH POPUP BÁO ĐỘNG KHẨN CẤP FULLSCREEN */
-        .alarm-overlay {
+        /* Fullscreen Emergency Overlay */
+        .emergency-modal {
             position: fixed;
             inset: 0;
-            background: #991B1B;
             z-index: 9999;
             display: none;
             flex-direction: column;
             justify-content: space-between;
-            align-items: center;
-            padding: 40px 24px;
+            padding: calc(36px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom));
+            background: radial-gradient(circle at top, #DC2626 0%, #7F1D1D 70%, #450A0A 100%);
+            animation: emergencyPulse 0.9s infinite alternate;
+        }
+
+        .emergency-modal.family-theme {
+            background: radial-gradient(circle at top, #EA580C 0%, #7C2D12 70%, #431407 100%);
+            animation: familyPulse 1.1s infinite alternate;
+        }
+
+        .emergency-modal.open {
+            display: flex;
+        }
+
+        .modal-center {
             text-align: center;
-            animation: flashBg 0.8s infinite alternate;
+            margin: auto 0;
         }
 
-        .alarm-overlay.family-mode {
-            background: #9A3412;
-            animation: flashFamily 1s infinite alternate;
+        .modal-siren {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.16);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            display: grid;
+            place-items: center;
+            font-size: 44px;
+            margin: 0 auto 18px;
+            animation: sirenBounce 0.55s infinite alternate;
         }
 
-        .alarm-overlay.active {
-            display: flex;
-        }
-
-        .alarm-icon {
-            font-size: 72px;
-            margin-top: 20px;
-            animation: shake 0.4s infinite;
-        }
-
-        .alarm-type {
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            background: rgba(0,0,0,0.3);
-            padding: 6px 16px;
-            border-radius: 20px;
-            margin-bottom: 12px;
-        }
-
-        .alarm-message {
-            font-size: 32px;
-            font-weight: 900;
-            line-height: 1.2;
-            margin-bottom: 10px;
-        }
-
-        .alarm-time {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .alarm-actions {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .btn-ack {
-            width: 100%;
-            background: #FFFFFF;
-            color: #0F172A;
-            border: none;
-            padding: 18px;
-            border-radius: 16px;
-            font-size: 18px;
+        .modal-pill {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: var(--radius-pill);
+            background: rgba(0, 0, 0, 0.32);
+            font-size: 11.5px;
             font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
         }
 
-        .btn-mute {
-            width: 100%;
-            background: rgba(0,0,0,0.25);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.4);
-            padding: 14px;
-            border-radius: 14px;
+        .modal-title {
+            font-size: 34px;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -0.4px;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        }
+
+        .modal-time {
             font-size: 15px;
             font-weight: 600;
+            opacity: 0.92;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+        }
+
+        .btn-confirm-arrival {
+            width: 100%;
+            background: #FFFFFF;
+            color: #090D16;
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 17px 16px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .btn-confirm-arrival:active {
+            transform: scale(0.98);
+        }
+
+        .btn-silence {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.28);
+            color: #FFFFFF;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            font-size: 14.5px;
+            font-weight: 700;
             cursor: pointer;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+        @keyframes blinkDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(0.85); }
         }
 
-        @keyframes flashBg {
-            from { background-color: #7F1D1D; }
-            to { background-color: #DC2626; }
+        @keyframes emergencyPulse {
+            from { filter: brightness(0.94); }
+            to { filter: brightness(1.08); }
         }
 
-        @keyframes flashFamily {
-            from { background-color: #7C2D12; }
-            to { background-color: #EA580C; }
+        @keyframes familyPulse {
+            from { filter: brightness(0.96); }
+            to { filter: brightness(1.06); }
         }
 
-        @keyframes shake {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-12deg); }
-            75% { transform: rotate(12deg); }
+        @keyframes sirenBounce {
+            from { transform: scale(1); }
+            to { transform: scale(1.08); }
         }
     </style>
 </head>
 <body>
+    <div class="app-shell">
+        <!-- Header -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-icon">🩺</div>
+                <div>
+                    <div class="brand-title">CareAlert Mobile</div>
+                    <div class="brand-sub">Giám sát gọi bác sĩ &amp; người nhà</div>
+                </div>
+            </div>
+            <div id="connPill" class="conn-pill disconnected">
+                <span class="conn-dot"></span>
+                <span id="connLabel">Kết nối...</span>
+            </div>
+        </header>
 
-    <!-- Header -->
-    <div class="header">
-        <div>
-            <h1>Giám Sát Bệnh Nhân</h1>
-            <p>Kênh: benhnhan_khoatrong_01</p>
-        </div>
-        <div id="connStatus" class="status-badge offline">
-            <span class="dot"></span>
-            <span id="connText">Đang kết nối...</span>
-        </div>
+        <!-- Sound Unlock Bar -->
+        <section id="soundBar" class="sound-bar">
+            <div class="sound-info">
+                <div id="soundBadge" class="sound-badge">🔇</div>
+                <div style="min-width: 0;">
+                    <div id="soundTitle" class="sound-title">Âm thanh cảnh báo đang khóa</div>
+                    <div id="soundDesc" class="sound-desc">Chạm "Bật âm thanh" để nhận còi &amp; giọng nói</div>
+                </div>
+            </div>
+            <button id="btnSound" class="btn-sound" onclick="enableAudioAlert()">Bật âm thanh</button>
+        </section>
+
+        <!-- Latest Signal Card -->
+        <section id="heroCard" class="hero-card">
+            <div class="hero-top">
+                <span class="hero-kicker">Tín hiệu mới nhất</span>
+                <span id="heroTag" class="hero-tag">Chờ tín hiệu</span>
+            </div>
+            <div id="heroMessage" class="hero-message">Chưa có cuộc gọi hỗ trợ</div>
+            <div class="hero-meta">
+                <span id="heroSource">Kênh: benhnhan_khoatrong_01</span>
+                <span id="heroTime">--:--:--</span>
+            </div>
+            <div id="replyBanner" class="reply-banner"></div>
+        </section>
+
+        <!-- Demo Test Panel -->
+        <section class="demo-card">
+            <div class="demo-header">
+                <span class="demo-title">Kiểm thử chuông &amp; giao diện</span>
+                <span style="font-size: 11px; color: var(--text-muted);">Chạm để test</span>
+            </div>
+            <div class="demo-grid">
+                <button class="btn-demo btn-demo-doctor" onclick="handleIncomingAlert('Gọi bác sĩ', 'URGENT')">
+                    <span>🚨</span>
+                    <span>Gọi bác sĩ</span>
+                </button>
+                <button class="btn-demo btn-demo-family" onclick="handleIncomingAlert('Gọi người nhà', 'FAMILY')">
+                    <span>🧡</span>
+                    <span>Gọi người nhà</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- History & Filter -->
+        <section class="history-card">
+            <div class="history-top">
+                <span class="history-title">Lịch sử tín hiệu</span>
+                <button class="btn-clear" onclick="clearLogs()">Xóa lịch sử</button>
+            </div>
+
+            <div class="filter-row">
+                <button class="filter-chip active" data-filter="ALL" onclick="setFilter('ALL', this)">Tất cả</button>
+                <button class="filter-chip" data-filter="URGENT" onclick="setFilter('URGENT', this)">Gọi bác sĩ</button>
+                <button class="filter-chip" data-filter="FAMILY" onclick="setFilter('FAMILY', this)">Gọi người nhà</button>
+                <button class="filter-chip" data-filter="INFO" onclick="setFilter('INFO', this)">Nhu cầu khác</button>
+            </div>
+
+            <div id="historyList" class="history-list">
+                <div class="history-empty">
+                    Chưa có thông báo nào được ghi nhận.<br>
+                    Khi bệnh nhân chọn <b>Gọi bác sĩ</b> hoặc <b>Gọi người nhà</b>, chuông cảnh báo sẽ tự động kêu.
+                </div>
+            </div>
+        </section>
     </div>
 
-    <!-- Nút mở khóa âm thanh trình duyệt -->
-    <button id="audioUnlockBtn" class="audio-unlock-btn" onclick="unlockAudio()">
-        🔔 Bấm vào đây để BẬT CHUÔNG CẢNH BÁO
-    </button>
+    <!-- Fullscreen Emergency Alert Modal -->
+    <div id="emergencyModal" class="emergency-modal">
+        <div class="modal-center">
+            <div id="modalSiren" class="modal-siren">🚨</div>
+            <div id="modalPill" class="modal-pill">CẢNH BÁO KHẨN CẤP</div>
+            <div id="modalTitle" class="modal-title">GỌI BÁC SĨ</div>
+            <div id="modalTime" class="modal-time">Thời gian: --:--:--</div>
+        </div>
 
-    <!-- Thẻ trạng thái hiện tại -->
-    <div class="monitor-card">
-        <div class="monitor-label">Tín hiệu gần nhất từ giường bệnh</div>
-        <div id="latestMsg" class="monitor-value">Đang chờ tín hiệu...</div>
-        <div id="latestTime" class="monitor-time">Chưa có tương tác mới</div>
-    </div>
-
-    <!-- Nút test thử ngay trên điện thoại -->
-    <div class="test-panel">
-        <div class="test-title">BẢNG KIỂM TRA NHANH (DEMO BÁO CÁO)</div>
-        <div class="test-buttons">
-            <button class="btn-test btn-test-doc" onclick="triggerAlert('Gọi bác sĩ', 'URGENT')">
-                🚨 Giả lập: Gọi bác sĩ
+        <div class="modal-actions">
+            <button class="btn-confirm-arrival" onclick="confirmArrival()">
+                ✅ ĐÃ NHẬN — TÔI ĐANG TỚI NGAY
             </button>
-            <button class="btn-test btn-test-fam" onclick="triggerAlert('Gọi người nhà', 'FAMILY')">
-                🧡 Giả lập: Gọi người nhà
-            </button>
-        </div>
-    </div>
-
-    <!-- Danh sách lịch sử -->
-    <div class="history-section">
-        <div class="history-header">
-            <h2>NHẬT KÝ NHẬN THÔNG BÁO</h2>
-            <button class="clear-btn" onclick="clearHistory()">Xóa danh sách</button>
-        </div>
-        <div id="historyList" class="history-list"></div>
-    </div>
-
-    <!-- Màn hình báo động khẩn cấp phủ toàn màn hình -->
-    <div id="alarmOverlay" class="alarm-overlay">
-        <div>
-            <div class="alarm-icon">🚨</div>
-            <div id="alarmBadge" class="alarm-type">CẢNH BÁO KHẨN CẤP</div>
-            <div id="alarmTitle" class="alarm-message">GỌI BÁC SĨ</div>
-            <div id="alarmTime" class="alarm-time">Lúc 20:35:10</div>
-        </div>
-
-        <div class="alarm-actions">
-            <button class="btn-ack" onclick="acknowledgeAlert()">
-                ✅ XÁC NHẬN: TÔI ĐANG TỚI NGAY
-            </button>
-            <button class="btn-mute" onclick="stopAlarm()">
+            <button class="btn-silence" onclick="dismissModal()">
                 Tắt chuông báo động
             </button>
         </div>
     </div>
 
     <script>
-        // --- CẤU HÌNH KÊNH KẾT NỐI VỚI PYTHON ---
-        const MQTT_BROKER = "wss://broker.emqx.io:8084/mqtt";
+        const MQTT_BROKER_URL = "wss://broker.emqx.io:8084/mqtt";
         const TOPIC_ALERT = "benhnhan_khoatrong_01/alert";
-        const TOPIC_REPLY = "benhnhan_khoatrong_01/reply";
+        const TOPIC_ACK = "benhnhan_khoatrong_01/ack";
 
-        let audioCtx = null;
-        let alarmInterval = null;
-        let isAudioUnlocked = false;
-        let client = null;
+        let mqttClient = null;
+        let audioContext = null;
+        let alarmTimer = null;
+        let audioEnabled = false;
+        let currentFilter = "ALL";
+        let logs = [];
 
-        // 1. Mở khóa âm thanh trên điện thoại
-        function unlockAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function enableAudioAlert() {
+            try {
+                if (!audioContext) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    audioContext = new AudioCtx();
+                }
+                if (audioContext.state === "suspended") {
+                    audioContext.resume();
+                }
+                playBeepTone(740, 0.12, "sine");
+                audioEnabled = true;
+
+                const bar = document.getElementById("soundBar");
+                const badge = document.getElementById("soundBadge");
+                const title = document.getElementById("soundTitle");
+                const desc = document.getElementById("soundDesc");
+                const btn = document.getElementById("btnSound");
+
+                bar.classList.add("active");
+                badge.textContent = "🔊";
+                title.textContent = "Chuông cảnh báo đã sẵn sàng";
+                desc.textContent = "Tự động phát âm thanh & rung khi có cuộc gọi";
+                btn.textContent = "Đã bật";
+            } catch (err) {
+                console.error("Audio unlock error:", err);
             }
-            if (audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
-            // Phát 1 tiếng bíp cực ngắn để xác nhận loa hoạt động
-            playTone(600, 0.1, "sine");
-            isAudioUnlocked = true;
-
-            const btn = document.getElementById("audioUnlockBtn");
-            btn.classList.add("unlocked");
-            btn.innerHTML = "🔊 Đã bật âm thanh & rung cảnh báo (Sẵn sàng)";
         }
 
-        // 2. Bộ tạo âm thanh còi báo động bằng sóng âm (Không lo lỗi thiếu file mp3)
-        function playTone(freq, duration, type = "sawtooth") {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        function playBeepTone(frequency, durationSec, waveType = "sawtooth") {
+            if (!audioContext || audioContext.state !== "running") return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = waveType;
+            osc.frequency.setValueAtTime(frequency, audioContext.currentTime);
 
-            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.35, audioContext.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + durationSec);
 
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(audioContext.destination);
+
             osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+            osc.stop(audioContext.currentTime + durationSec + 0.02);
         }
 
-        function startAlarmSound(level) {
-            stopAlarmSound();
-            if (!isAudioUnlocked) {
-                unlockAudio();
-            }
-
-            // Rung điện thoại (Android hỗ trợ mạnh)
-            if (navigator.vibrate) {
-                navigator.vibrate(level === "URGENT" ? [500, 200, 500, 200, 800] : [300, 200, 300]);
-            }
-
-            // Đọc giọng nói tiếng Việt qua trình duyệt nếu hỗ trợ
-            if ("speechSynthesis" in window) {
+        function speakVietnamese(text) {
+            if (!("speechSynthesis" in window)) return;
+            try {
                 window.speechSynthesis.cancel();
-                const msg = new SpeechSynthesisUtterance(
-                    level === "URGENT" ? "Khẩn cấp! Bệnh nhân đang gọi bác sĩ!" : "Chú ý! Bệnh nhân đang gọi người nhà!"
-                );
-                msg.lang = "vi-VN";
-                msg.rate = 1.05;
-                window.speechSynthesis.speak(msg);
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = "vi-VN";
+                utter.rate = 1.05;
+                window.speechSynthesis.speak(utter);
+            } catch (err) {
+                console.warn("Speech synthesis unavailable:", err);
             }
-
-            // Lặp còi báo động
-            let toggle = false;
-            alarmInterval = setInterval(() => {
-                if (level === "URGENT") {
-                    playTone(toggle ? 960 : 720, 0.35, "sawtooth");
-                } else {
-                    playTone(toggle ? 660 : 520, 0.35, "triangle");
-                }
-                toggle = !toggle;
-                if (navigator.vibrate) {
-                    navigator.vibrate(300);
-                }
-            }, 450);
         }
 
-        function stopAlarmSound() {
-            if (alarmInterval) {
-                clearInterval(alarmInterval);
-                alarmInterval = null;
+        function startAlarmLoop(level, spokenText = "") {
+            stopAlarmLoop();
+            if (!audioEnabled) {
+                enableAudioAlert();
+            }
+
+            if (navigator.vibrate) {
+                navigator.vibrate(level === "URGENT" ? [450, 180, 450, 180, 700] : [280, 180, 280]);
+            }
+
+            const prefix = level === "URGENT"
+                ? "Khẩn cấp! Bệnh nhân phát tín hiệu: "
+                : "Chú ý! Bệnh nhân phát tín hiệu: ";
+            const defaultTarget = level === "URGENT" ? "Gọi bác sĩ" : "Gọi người nhà";
+            speakVietnamese(prefix + (spokenText || defaultTarget));
+
+            let highPitch = true;
+            const tick = () => {
+                if (level === "URGENT") {
+                    playBeepTone(highPitch ? 980 : 740, 0.34, "sawtooth");
+                } else {
+                    playBeepTone(highPitch ? 680 : 520, 0.34, "triangle");
+                }
+                highPitch = !highPitch;
+                if (navigator.vibrate) {
+                    navigator.vibrate(260);
+                }
+            };
+
+            tick();
+            alarmTimer = setInterval(tick, 440);
+        }
+
+        function stopAlarmLoop() {
+            if (alarmTimer) {
+                clearInterval(alarmTimer);
+                alarmTimer = null;
             }
             if (navigator.vibrate) {
                 navigator.vibrate(0);
             }
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+            }
         }
 
-        // 3. Kích hoạt giao diện cảnh báo
-        function triggerAlert(text, level = "URGENT") {
-            const now = new Date().toLocaleTimeString("vi-VN");
-            document.getElementById("latestMsg").innerText = text;
-            document.getElementById("latestTime").innerText = "Cập nhật lúc: " + now;
+        function detectLevel(text, rawLevel) {
+            if (rawLevel === "URGENT" || rawLevel === "FAMILY" || rawLevel === "INFO") {
+                return rawLevel;
+            }
+            const lower = (text || "").toLowerCase();
+            if (lower.includes("bác sĩ") || lower.includes("khó thở") || lower.includes("cấp cứu")) {
+                return "URGENT";
+            }
+            if (lower.includes("người nhà") || lower.includes("gia đình")) {
+                return "FAMILY";
+            }
+            return "INFO";
+        }
 
-            addHistoryItem(text, level, now);
+        function handleIncomingAlert(messageText, rawLevel = null) {
+            const cleanText = (messageText || "").trim();
+            if (!cleanText) return;
 
-            // Chỉ bật còi toàn màn hình nếu là Gọi bác sĩ hoặc Gọi người nhà
+            const level = detectLevel(cleanText, rawLevel);
+            const nowStr = new Date().toLocaleTimeString("vi-VN");
+
+            const heroCard = document.getElementById("heroCard");
+            const heroTag = document.getElementById("heroTag");
+            const heroMessage = document.getElementById("heroMessage");
+            const heroTime = document.getElementById("heroTime");
+            const replyBanner = document.getElementById("replyBanner");
+
+            heroCard.classList.remove("urgent", "family");
+            replyBanner.classList.remove("show");
+
+            if (level === "URGENT") {
+                heroCard.classList.add("urgent");
+                heroTag.textContent = "KHẨN CẤP • BÁC SĨ";
+            } else if (level === "FAMILY") {
+                heroCard.classList.add("family");
+                heroTag.textContent = "HỖ TRỢ • NGƯỜI NHÀ";
+            } else {
+                heroTag.textContent = "NHU CẦU KHÁC";
+            }
+
+            heroMessage.textContent = cleanText;
+            heroTime.textContent = "Lúc " + nowStr;
+
+            logs.unshift({
+                id: Date.now() + Math.random(),
+                text: cleanText,
+                level,
+                time: nowStr
+            });
+            renderLogs();
+
             if (level === "URGENT" || level === "FAMILY") {
-                const overlay = document.getElementById("alarmOverlay");
-                const badge = document.getElementById("alarmBadge");
-                const title = document.getElementById("alarmTitle");
-                const timeLbl = document.getElementById("alarmTime");
+                const modal = document.getElementById("emergencyModal");
+                const siren = document.getElementById("modalSiren");
+                const pill = document.getElementById("modalPill");
+                const title = document.getElementById("modalTitle");
+                const mTime = document.getElementById("modalTime");
 
-                overlay.classList.remove("family-mode");
+                modal.classList.remove("family-theme");
                 if (level === "FAMILY") {
-                    overlay.classList.add("family-mode");
-                    badge.innerText = "YÊU CẦU HỖ TRỢ NGƯỜI THÂN";
+                    modal.classList.add("family-theme");
+                    siren.textContent = "🧡";
+                    pill.textContent = "BỆNH NHÂN GỌI NGƯỜI NHÀ";
                 } else {
-                    badge.innerText = "CẢNH BÁO Y TẾ KHẨN CẤP";
+                    siren.textContent = "🚨";
+                    pill.textContent = "CẢNH BÁO Y TẾ KHẨN CẤP";
                 }
 
-                title.innerText = text.toUpperCase();
-                timeLbl.innerText = "Thời gian gọi: " + now;
-                overlay.classList.add("active");
+                title.textContent = cleanText.toUpperCase();
+                mTime.textContent = "Thời gian gọi: " + nowStr;
+                modal.classList.add("open");
 
-                startAlarmSound(level);
+                startAlarmLoop(level, cleanText);
+            } else if (audioEnabled) {
+                playBeepTone(620, 0.16, "sine");
             }
         }
 
-        function stopAlarm() {
-            stopAlarmSound();
-            document.getElementById("alarmOverlay").classList.remove("active");
+        function dismissModal() {
+            stopAlarmLoop();
+            document.getElementById("emergencyModal").classList.remove("open");
         }
 
-        // 4. Phản hồi ngược về máy tính của bệnh nhân
-        function acknowledgeAlert() {
-            stopAlarm();
-            if (client && client.connected) {
-                client.publish(TOPIC_REPLY, "Người chăm sóc đã nhận tín hiệu và đang vào ngay!");
+        function confirmArrival() {
+            dismissModal();
+            const replyText = "Người chăm sóc đã nhận tín hiệu và đang vào ngay!";
+            const banner = document.getElementById("replyBanner");
+            banner.textContent = "✓ Đã phản hồi tới bệnh nhân: " + replyText;
+            banner.classList.add("show");
+
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish(TOPIC_ACK, JSON.stringify({
+                    status: "ACK",
+                    message: replyText,
+                    time: new Date().toLocaleTimeString("vi-VN")
+                }));
             }
-            alert("Đã gửi phản hồi 'Tôi đang tới ngay' về màn hình của bệnh nhân!");
         }
 
-        function addHistoryItem(text, level, timeStr) {
-            const list = document.getElementById("historyList");
-            const item = document.createElement("div");
-            item.className = "history-item " + (level === "URGENT" ? "urgent" : (level === "FAMILY" ? "family" : ""));
-            item.innerHTML = `
-                <div>
-                    <div class="item-title">${text}</div>
-                    <div class="item-sub">${level === "URGENT" ? "Khẩn cấp y tế" : (level === "FAMILY" ? "Gọi người nhà" : "Nhu cầu sinh hoạt")}</div>
-                </div>
-                <div class="item-time">${timeStr}</div>
-            `;
-            list.prepend(item);
+        function setFilter(filterType, btnEl) {
+            currentFilter = filterType;
+            document.querySelectorAll(".filter-chip").forEach((el) => el.classList.remove("active"));
+            if (btnEl) btnEl.classList.add("active");
+            renderLogs();
         }
 
-        function clearHistory() {
-            document.getElementById("historyList").innerHTML = "";
+        function renderLogs() {
+            const listEl = document.getElementById("historyList");
+            const filtered = currentFilter === "ALL"
+                ? logs
+                : logs.filter((item) => item.level === currentFilter);
+
+            if (!filtered.length) {
+                listEl.innerHTML = `
+                    <div class="history-empty">
+                        Không có tín hiệu nào thuộc bộ lọc này.
+                    </div>
+                `;
+                return;
+            }
+
+            listEl.innerHTML = filtered.map((item) => {
+                const cls = item.level === "URGENT" ? "urgent" : (item.level === "FAMILY" ? "family" : "");
+                const subText = item.level === "URGENT"
+                    ? "Gọi bác sĩ • Khẩn cấp"
+                    : (item.level === "FAMILY" ? "Gọi người nhà • Hỗ trợ" : "Thông tin từ hệ thống");
+
+                return `
+                    <div class="log-item ${cls}">
+                        <div class="log-main">
+                            <div class="log-text">${escapeHtml(item.text)}</div>
+                            <div class="log-sub">${subText}</div>
+                        </div>
+                        <div class="log-time">${item.time}</div>
+                    </div>
+                `;
+            }).join("");
         }
 
-        // 5. Kết nối MQTT nhận tin từ Python
-        function connectMQTT() {
-            client = mqtt.connect(MQTT_BROKER);
-            const statusBadge = document.getElementById("connStatus");
-            const statusText = document.getElementById("connText");
+        function clearLogs() {
+            logs = [];
+            renderLogs();
+        }
 
-            client.on("connect", () => {
-                statusBadge.classList.remove("offline");
-                statusText.innerText = "Đã kết nối trực tuyến";
-                client.subscribe(TOPIC_ALERT);
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function initMQTT() {
+            const pill = document.getElementById("connPill");
+            const label = document.getElementById("connLabel");
+
+            mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+                reconnectPeriod: 3000,
+                connectTimeout: 8000
             });
 
-            client.on("message", (topic, message) => {
-                if (topic === TOPIC_ALERT) {
-                    try {
-                        const data = JSON.parse(message.toString());
-                        triggerAlert(data.text, data.level);
-                    } catch (e) {
-                        const raw = message.toString();
-                        const lvl = raw.toLowerCase().includes("bác sĩ") ? "URGENT" :
-                                    (raw.toLowerCase().includes("người nhà") ? "FAMILY" : "INFO");
-                        triggerAlert(raw, lvl);
-                    }
+            mqttClient.on("connect", () => {
+                pill.classList.remove("disconnected");
+                label.textContent = "Trực tuyến";
+                mqttClient.subscribe(TOPIC_ALERT);
+            });
+
+            mqttClient.on("message", (topic, payload) => {
+                if (topic !== TOPIC_ALERT) return;
+                const raw = payload.toString();
+                try {
+                    const parsed = JSON.parse(raw);
+                    handleIncomingAlert(parsed.text || parsed.message || raw, parsed.level || null);
+                } catch (_) {
+                    handleIncomingAlert(raw, null);
                 }
             });
 
-            client.on("offline", () => {
-                statusBadge.classList.add("offline");
-                statusText.innerText = "Mất kết nối mạng";
+            mqttClient.on("offline", () => {
+                pill.classList.add("disconnected");
+                label.textContent = "Mất mạng";
+            });
+
+            mqttClient.on("error", () => {
+                pill.classList.add("disconnected");
+                label.textContent = "Lỗi kết nối";
             });
         }
 
-        connectMQTT();
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("./sw.js").catch((err) => {
+                    console.warn("SW register failed:", err);
+                });
+            });
+        }
+
+        initMQTT();
     </script>
 </body>
 </html>
